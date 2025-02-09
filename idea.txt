@@ -1,0 +1,17 @@
+main () {
+    // valE or valP or something
+
+    [opCode] = readFirstByte();
+    [code] =readMoreBytes(opCode);
+    register();
+    // read
+
+    let variable1 = 0;
+    [opCode, variable1] = stage1();
+
+    [variable2] = stage2(variable1);
+
+    // ...
+}
+
+TODO: push, pop, gui! Almost there u got this! ⭐
