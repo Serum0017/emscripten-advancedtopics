@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <link href="./style.css" rel="stylesheet" type="text/css"/>
+</head>
+<body>
+
+    <!-- Create the canvas that the C++ code will draw into -->
+    <canvas id="canvas">
+
+
+        
+    </canvas>
+
+    <!-- Allow the C++ to access the canvas element --> 
+    <script type='text/javascript'>
+        var Module = {
+            canvas: (function() { return document.getElementById('canvas'); })()
+        };
+
+        Module.onRuntimeInitialized = () => {
+            canvas.onclick = () => {
+                Module.step();
+            }
+
+            console.log('init!');
+
+            let time = performance.now();
+            let lastTime = time;
+            let dt = 0;
+            function render(){
+                time = performance.now();
+                dt = (time - lastTime) / 1000;
+                lastTime = time;
+                requestAnimationFrame(render);
+                Module.render(dt);
+            }
+            requestAnimationFrame(render);
+        } 
+    </script>
+    
+    <script src="script.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+in C:\Users\...\GitHub\emsdk>
+
+run emsdk_env.bat install latest
+
+DO NOT CLOSE THE CMD PROMPT (or else!!)
+
+emsdk.bat activate latest
+
+then navigate to this repo and do
+
+emcc main.cpp -o index.js -lembind
+
+(do index.html if you want the emscripten shell)
+
+then open a terminal in a second tab and
+
+npx serve .
+
+and page should load on localhost.
