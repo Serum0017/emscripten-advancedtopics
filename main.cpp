@@ -7,30 +7,44 @@
 #include <functional>
 using namespace std;
 
+#include <emscripten/val.h>
+
+using emscripten::val;
+
+// Use thread_local when you want to retrieve & cache a global JS variable once per thread.
+thread_local const val document = val::global("document");
+
 int main() {
-    std::ifstream code;
-    code.open("file.s");
-    string line;
-
-    if(code.is_open()){}
-
-    std::getline(code, line);
-
-    int size = (line.size() / 8);
-    byte* program = new byte[size];
-    for(int i = 0; i<line.size(); i+=8){
-        for(int j = i; j < i+8; j++){
-            int pos = i / 8;
-            program[pos] = (byte) ((int) program[pos] + ((int) (line.at(j)-'0')));
-            program[pos] = (byte) ((int) program[pos] * (int) 2);
-        }
-    }
-    // // std::cout << "Hello C++!" << std::endl;
-
-    runCode(program);
-
-    return 0;
+    val canvas = document.call<val>("getElementById", "canvas");
+    val ctx = canvas.call<val>("getContext", "2d");
+    ctx.set("fillStyle", "green");
+    ctx.call<void>("fillRect", 10, 10, 150, 100);
 }
+
+// int main() {
+//     std::ifstream code;
+//     code.open("file.s");
+//     string line;
+
+//     if(code.is_open()){}
+
+//     std::getline(code, line);
+
+//     int size = (line.size() / 8);
+//     byte* program = new byte[size];
+//     for(int i = 0; i<line.size(); i+=8){
+//         for(int j = i; j < i+8; j++){
+//             int pos = i / 8;
+//             program[pos] = (byte) ((int) program[pos] + ((int) (line.at(j)-'0')));
+//             program[pos] = (byte) ((int) program[pos] * (int) 2);
+//         }
+//     }
+//     // // std::cout << "Hello C++!" << std::endl;
+
+//     runCode(program);
+
+//     return 0;
+// }
 
 void runCode(byte* program){
     // byte* readStorage = new byte[9];
@@ -227,10 +241,8 @@ bool cmpSuccessful(bool zeroFlag, bool overflowFlag, bool signedFlag, int fnCode
     switch(fnCode){
         case 0:
             return true;
-    
         case 1:
             return zeroFlag || (signedFlag ^ overflowFlag);
-
         case 2:
             return signedFlag ^ overflowFlag;
         case 3:
