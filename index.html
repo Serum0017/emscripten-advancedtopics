@@ -19,28 +19,35 @@
     <!-- Allow the C++ to access the canvas element --> 
     <script type='text/javascript'>
         var Module = {
-            canvas: (function() { return document.getElementById('canvas'); })()
+            canvas: (function() { return document.getElementById('canvas'); })(),
+            print: function(text) {
+                console.log(text);
+            },
         };
 
-        Module.onRuntimeInitialized = () => {
-            canvas.onclick = () => {
-                Module.step();
-            }
+        (async()=>{
 
-            console.log('init!');
+            const initPromise = new Promise((res) => {
+                Module.onRuntimeInitialized = () => {
+                    res();
+                }
+            })
 
-            let time = performance.now();
-            let lastTime = time;
-            let dt = 0;
-            function render(){
-                time = performance.now();
-                dt = (time - lastTime) / 1000;
-                lastTime = time;
-                requestAnimationFrame(render);
-                Module.render(dt);
-            }
-            requestAnimationFrame(render);
-        } 
+            const loadPromise = new Promise((res) => {
+                document.fonts.ready.then((fontFaceSet) => {
+                    res();
+                });
+            })
+
+            Promise.all([initPromise, loadPromise])
+                .then(() => {
+                    console.log('init');
+                    Module.step();
+                    canvas.onclick = () => {
+                        Module.step();
+                    }
+                })
+        })();
     </script>
     
     <script src="script.js"></script>
