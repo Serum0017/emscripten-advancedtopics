@@ -54,6 +54,7 @@
         "xhash": "cpp",
         "unordered_map": "cpp",
         "functional": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "sstream": "cpp"
     }
 }

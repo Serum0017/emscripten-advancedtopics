@@ -42,6 +42,13 @@
             Promise.all([initPromise, loadPromise])
                 .then(() => {
                     console.log('init');
+
+                    let code = localStorage.getItem('code');
+                    if(!code) {
+                        code = prompt('Code not found! Please enter in a string asm code');
+                        localStorage.setItem('code', code);
+                    }
+                    Module.initCode(code);
                     Module.step();
                     canvas.onclick = () => {
                         Module.step();

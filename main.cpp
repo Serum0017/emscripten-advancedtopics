@@ -50,24 +50,6 @@ std::vector<std::string> split(std::string& s, const std::string& delimiter) {
 }
 
 int main(){
-    std::ifstream code;
-    code.open("asm.txt");
-    string line;
-    std::getline(code, line);
-
-    std::vector<std::string> hexVals = split(line, " ");
-    
-    
-    int len = hexVals.size();
-    program = new byte[len];
-    for(int i = 0; i < len; i++){
-        unsigned int x;
-        std::stringstream ss;
-        ss << std::hex << hexVals[i];
-        ss >> x;
-        program[i] = (byte) x;
-    }
-    
     instructToLength[0] = 1;
     instructToLength[1] = 1;
     instructToLength[2] = 2;
@@ -123,12 +105,32 @@ int main(){
 //     return 0;
 // }
 
+void initCode(string line){
+
+    std::vector<std::string> hexVals = split(line, " ");
+    
+    int len = hexVals.size();
+    program = new byte[len];
+
+    for(int i = 0; i < len; i++){
+        unsigned int x;
+        std::stringstream ss;
+        ss << std::hex << hexVals[i];
+        ss >> x;
+        program[i] = (byte) x;
+    }
+}
+
 std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* program, std::unordered_map<int, int> instructToMem, std::unordered_map<int, int> instructToLength){
     // FETCH
     std::unordered_map<string, int64_t> returnDict;
 
     byte instructionNum = program[pc];
     int instructionCode = ((int) instructionNum) >> 4;
+
+    // cout << "pc\n";
+    // cout << (int) pc;
+    // cout << "\n";
     if(instructionCode==0){
         *statusCode = 2;
         //raise(SIGSEGV);// CRASH AND BURN
@@ -141,15 +143,44 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
     int fnCode = (int) ((instructionNum) & ((byte) 0xF));
 
     int valP = pc+instructToLength[instructionCode];
+
+    // cout << "increasing\n";
+    // cout << instructToLength[instructionCode];
+    // cout << "\n";
     
     int64_t valC = 0;
 
-    if(instructToMem[instructionCode]!=0){
-        for(int i = 0; i<8; i++){
+    if(instructToMem[instructionCode] != 0){
+        for(int i = 7; i >= 0; i--){
+            valC *= (1 << 8);
+            // cout << (int) program[(int) pc+instructToMem[instructionCode]+i] << "\n";
+            
             valC += (int64_t) program[(int) pc+instructToMem[instructionCode]+i]; //Hopefully pc is never bigger than 2^32 (PRAY)
-            valC *= 8;
         }
     }
+
+    // 0 0 0 0 0 0 12 34
+
+    // 0 0 0 0 0 0 12
+
+    // 9268
+
+    // 0x2434
+
+    // 4660
+
+    // cout << "i did\n";
+    // cout << valC << "\n";
+
+    // 11000100
+
+    // 1234 in binary 1001000110100
+
+    // 000000000000010
+
+    //268435456
+    //268435456 = 2 ** 28
+    // cout << valC << "\n";
 
     returnDict["rA"] = (int64_t) rA; //Casting to int64_t is OK here, we can just cast back to int later
     returnDict["rB"] = (int64_t) rB;
@@ -282,8 +313,15 @@ std::unordered_map<string, int64_t> writeBack(std::unordered_map<string, int64_t
     int rA = (int) packagedValues["rA"];
     int rB = (int) packagedValues["rB"];
 
-    registers[rA] = packagedValues["valA"];
-    registers[rB] = packagedValues["valB"];
+    if(rA!=15){
+        registers[rA] = packagedValues["valA"];
+    }
+    if(rB!=15){
+        registers[rB] = packagedValues["valB"];
+    }
+    if(packagedValues["instructionCode"] == 6){
+        registers[rB] = packagedValues["valE"];
+    }
 
     if(packagedValues["instructionCode"] == 8){
         registers[4] = (int64_t) packagedValues["valC"];
@@ -494,8 +532,8 @@ int64_t opQ(int64_t rA, int64_t rB, int64_t fnCode){
 }
 
 //Level step, byte* memoryData, int* pc, int64_t* registers, bool* zeroFlag, bool* overflowFlag, bool* signedFlag, int* statusCode, std::unordered_map<int, int> instructToMem, std::unordered_map<int, int> instructToLength, byte* readStorage
+std::unordered_map<string, int64_t> packagedValues;
 void step(){
-    std::unordered_map<string, int64_t> packagedValues;
     switch(stepNum){
         case 0:
         //int64_t pc, int* statusCode, byte* program, std::unordered_map<int, int> instructToMem, std::unordered_map<int, int> instructToLength)
@@ -518,16 +556,23 @@ void step(){
             pc = PC(pc, packagedValues);
             break;
     }
-    
-    render(packagedValues, registers, stepNum, memoryData, pc);
 
+    //0step
+    // cout << "stepNum\n";
+    // cout << stepNum << "\n" << "pc" << pc << "\n";
+    
+    render(packagedValues, registers, stepNum, memoryData, pc, zeroFlag, overflowFlag, signedFlag);
+
+    // cout << "increasing stepnum" << stepNum << "\n";
     stepNum = (stepNum + 1) % 6;
+    // cout << "after increase" << stepNum << "\n";
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
     // emscripten::function("lerp", &lerp);
     // emscripten::function("render", render);
     emscripten::function("step", &step);
+    emscripten::function("initCode", &initCode);
 }
 
 bool cmpSuccessful(bool zeroFlag, bool overflowFlag, bool signedFlag, int fnCode){

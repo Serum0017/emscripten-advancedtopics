@@ -25,7 +25,21 @@ std::string num2str(int64_t w, size_t hex_len = sizeof(int64_t)<<1) {
     std::string rc(hex_len,'0');
     for (size_t i=0, j=(hex_len-1)*4 ; i<hex_len; ++i,j-=4)
         rc[i] = digits[(w>>j) & 0x0f];
-    return rc;
+
+    cout << rc << "\n";
+    bool allZeroes = true;
+    int firstNonzeroIndex = 0;
+    for(int i = 0; i < hex_len; i++){
+        if(rc[i] != '0'){
+            firstNonzeroIndex = i;
+            allZeroes = false;
+            break;
+        }
+    }
+    if(allZeroes == true) {
+        return "0";
+    }
+    return rc.substr(firstNonzeroIndex);
 }
 
 const int registerW = 150;
@@ -51,6 +65,8 @@ void renderRegister(emscripten::val ctx, int x, int y, string name, string val){
     ctx.call<void>("fillText", val, x + registerW/2, y + registerH/2 + 14);
 }
 
+
+
 void renderRegisters(emscripten::val ctx, int64_t* registers){
     const string registerNames[] = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14"};
 
@@ -63,7 +79,7 @@ void renderRegisters(emscripten::val ctx, int64_t* registers){
 }
 
 void renderConditionCode(emscripten::val ctx, int x, int y, string codeName, bool codeValue){
-    renderRegister(ctx, x, y, codeName, num2str(codeValue));
+    renderRegister(ctx, x, y, codeName, codeValue == true ? "true" : "false");
 }
 
 void renderPC(emscripten::val ctx, int64_t val){
@@ -86,7 +102,7 @@ void renderStatus(emscripten::val ctx, int x, int y, int status){
 int64_t readDouble(byte* readFrom, int64_t loc){
     int64_t r = 0;
     for(int i = loc+8-1; i >= loc; i--){
-        r *= 2 << 8;
+        r *= 1 << 8;
         r += (int64_t) readFrom[i];
     }
     return r;
@@ -133,7 +149,8 @@ void renderStage(emscripten::val ctx, string stage){
     ctx.call<void>("fillText", stage, canvasW - memW - 10, 10);
 }
 
-void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registers, int stepNum, byte* memoryData, int pc) {// deltaTime, use for animations
+string keysToCheck[] = {"rA","rB","valA","valB","valC","valE","valP", "instructionCode","fnCode","condition","stackPtr"};
+void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registers, int stepNum, byte* memoryData, int pc, bool zeroFlag, bool overflowFlag, bool signedFlag) {// deltaTime, use for animations
     const auto document = emscripten::val::global("document");
     const auto canvas = document.call<emscripten::val, std::string>("querySelector", "canvas");
 
@@ -147,6 +164,26 @@ void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registe
     renderPC(ctx, pc);
     renderStage(ctx, stepToStr[stepNum]);
     renderStackTop(ctx, registers, memoryData);
+    renderConditionCode(ctx, 0,0,"Zero Flag", zeroFlag);
+    renderConditionCode(ctx, 0,registerH,"Overflow Flag", overflowFlag);
+    renderConditionCode(ctx, 0,2*registerH,"Signed Flag", signedFlag);
+    
+    int priorDisp = 0;
+    for(int i = 0; i < 11; i++){
+        //if(packagedValues.count(keysToCheck[i])) continue;
+
+        int64_t val = packagedValues[keysToCheck[i]];
+        string toRender = num2str(val);
+        if(keysToCheck[i] == "condition") toRender = (val == (int64_t) 1 ? "true" : "false");
+
+        cout << "key \n" << keysToCheck[i] << "\n text to render: \n" << toRender << "\n";
+
+        renderRegister(ctx, registerW, priorDisp*registerH, keysToCheck[i], toRender);
+        
+        priorDisp++;
+    }
+
+    // my_map.contains(k1)
 
     // returnDict["rA"] = (int64_t) rA; //Casting to int64_t is OK here, we can just cast back to int later
     // returnDict["rB"] = (int64_t) rB;
