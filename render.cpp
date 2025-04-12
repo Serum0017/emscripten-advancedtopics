@@ -108,25 +108,36 @@ int64_t readDouble(byte* readFrom, int64_t loc){
     return r;
 }
 
-void renderStackTop(emscripten::val ctx, int64_t* registers, byte* memoryData){
-    int stackPtr = registers[4];
+void renderMemory(emscripten::val ctx, int64_t* registers, byte* memoryData){
+    // int stackPtr = registers[4];
+    // int stackPtr = registers[4];
     
-    int start = stackPtr - 15 * 8;
-    if(start < 0) start = 0;
+    // int start = stackPtr - 15 * 8;
+    // if(start < 0) start = 0;
+    // int x = canvasW - memW;
+    // int y = 0;
+
+    // ctx.set("strokeStyle", "black");
+    // ctx.call<void>("beginPath");
+    // ctx.call<void>("moveTo", x, 0);
+    // ctx.call<void>("lineTo", x, canvasH);
+    // ctx.call<void>("stroke");
+    // ctx.call<void>("closePath");
+
+    // for(int i = start; i <= stackPtr; i+=8){
+    //     y += registerH;
+    //     renderRegister(ctx, x, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
+    // }
+
     int x = canvasW - memW;
     int y = 0;
-
-    ctx.set("strokeStyle", "black");
-    ctx.call<void>("beginPath");
-    ctx.call<void>("moveTo", x, 0);
-    ctx.call<void>("lineTo", x, canvasH);
-    ctx.call<void>("stroke");
-    ctx.call<void>("closePath");
-
-    for(int i = start; i <= stackPtr; i+=8){
-        y += registerH;
+    for(int i = 0; i < 15; i++){
         renderRegister(ctx, x, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
+        y += registerH;
     }
+    int i = 16;
+    int y = 0;
+    renderRegister(ctx, x - memW, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
 }
 
 std::unordered_map<int, std::string> stepToStr;
@@ -163,7 +174,7 @@ void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registe
     renderRegisters(ctx, registers);
     renderPC(ctx, pc);
     renderStage(ctx, stepToStr[stepNum]);
-    renderStackTop(ctx, registers, memoryData);
+    renderMemory(ctx, registers, memoryData);
     renderConditionCode(ctx, 0,0,"Zero Flag", zeroFlag);
     renderConditionCode(ctx, 0,registerH,"Overflow Flag", overflowFlag);
     renderConditionCode(ctx, 0,2*registerH,"Signed Flag", signedFlag);
@@ -176,7 +187,7 @@ void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registe
         string toRender = num2str(val);
         if(keysToCheck[i] == "condition") toRender = (val == (int64_t) 1 ? "true" : "false");
 
-        cout << "key \n" << keysToCheck[i] << "\n text to render: \n" << toRender << "\n";
+        // cout << "key \n" << keysToCheck[i] << "\n text to render: \n" << toRender << "\n";
 
         renderRegister(ctx, registerW, priorDisp*registerH, keysToCheck[i], toRender);
         

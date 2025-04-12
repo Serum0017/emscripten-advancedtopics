@@ -26,7 +26,7 @@ int64_t opQ(int64_t, int64_t, int64_t);
 bool cmpSuccessful(bool, bool, bool, int);
 
 byte* program;
-byte memoryData[4096];
+byte memoryData[128];
 int pc = 0;// program counter
 int64_t registers[15];
 bool zeroFlag = false;
