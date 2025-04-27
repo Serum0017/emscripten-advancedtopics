@@ -161,7 +161,7 @@ void renderStage(emscripten::val ctx, string stage){
 }
 
 string keysToCheck[] = {"rA","rB","valA","valB","valC","valE","valP", "instructionCode","fnCode","condition","stackPtr"};
-void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registers, int stepNum, byte* memoryData, int pc, bool zeroFlag, bool overflowFlag, bool signedFlag) {// deltaTime, use for animations
+void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registers, int stepNum, byte* memoryData, int pc, bool zeroFlag, bool overflowFlag, bool signedFlag, int statusCode) {// deltaTime, use for animations
     const auto document = emscripten::val::global("document");
     const auto canvas = document.call<emscripten::val, std::string>("querySelector", "canvas");
 
@@ -173,7 +173,7 @@ void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registe
 
     renderRegisters(ctx, registers);
     renderPC(ctx, pc);
-    renderStage(ctx, stepToStr[stepNum]);
+    renderStage(ctx, statusCode == 2 ? "Halt" : stepToStr[stepNum]);
     renderMemory(ctx, registers, memoryData);
     renderConditionCode(ctx, 0,0,"Zero Flag", zeroFlag);
     renderConditionCode(ctx, 0,registerH,"Overflow Flag", overflowFlag);

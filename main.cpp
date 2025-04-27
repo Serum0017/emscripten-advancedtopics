@@ -578,7 +578,7 @@ void step(){
             break;
     }
 
-    render(packagedValues, registers, stepNum, memoryData, pc, zeroFlag, overflowFlag, signedFlag);
+    render(packagedValues, registers, stepNum, memoryData, pc, zeroFlag, overflowFlag, signedFlag, statusCode);
 
     stepNum = (stepNum + 1) % 6;
     
