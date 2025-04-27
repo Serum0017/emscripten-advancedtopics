@@ -26,7 +26,7 @@ std::string num2str(int64_t w, size_t hex_len = sizeof(int64_t)<<1) {
     for (size_t i=0, j=(hex_len-1)*4 ; i<hex_len; ++i,j-=4)
         rc[i] = digits[(w>>j) & 0x0f];
 
-    cout << rc << "\n";
+    // cout << rc << "\n";
     bool allZeroes = true;
     int firstNonzeroIndex = 0;
     for(int i = 0; i < hex_len; i++){
@@ -132,12 +132,12 @@ void renderMemory(emscripten::val ctx, int64_t* registers, byte* memoryData){
     int x = canvasW - memW;
     int y = 0;
     for(int i = 0; i < 15; i++){
-        renderRegister(ctx, x, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
+        renderRegister(ctx, x, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, 8*i)));
         y += registerH;
     }
-    int i = 16;
-    int y = 0;
-    renderRegister(ctx, x - memW, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
+    int i = 15;
+    y=0;
+    renderRegister(ctx, x - memW, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, 8*i)));
 }
 
 std::unordered_map<int, std::string> stepToStr;
@@ -157,7 +157,7 @@ void renderStage(emscripten::val ctx, string stage){
     ctx.set("textBaseline", "top");
     ctx.set("fillStyle", "black");
     ctx.set("font", "600 48px Ubuntu");
-    ctx.call<void>("fillText", stage, canvasW - memW - 10, 10);
+    ctx.call<void>("fillText", stage, canvasW - memW * 2 - 10, 10);
 }
 
 string keysToCheck[] = {"rA","rB","valA","valB","valC","valE","valP", "instructionCode","fnCode","condition","stackPtr"};

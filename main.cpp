@@ -50,6 +50,7 @@ std::vector<std::string> split(std::string& s, const std::string& delimiter) {
 }
 
 int main(){
+    registers[4] = 120;//sizeof(memoryData) / 8 - 8; //might cause issues with push and pop
     instructToLength[0] = 1;
     instructToLength[1] = 1;
     instructToLength[2] = 2;
@@ -58,19 +59,19 @@ int main(){
     instructToLength[5] = 10;
     instructToLength[6] = 2;
     instructToLength[7] = 9;
-    instructToLength[8] = 2;
-    instructToLength[9] = 9;
+    instructToLength[8] = 9;
+    instructToLength[9] = 1;
     instructToLength[10] = 2;
     instructToLength[11] = 2;
 
     instructToMem[0] = 0;
     instructToMem[1] = 0;
-    instructToMem[2] = 2;
+    instructToMem[2] = 0;
     instructToMem[3] = 2;
     instructToMem[4] = 2;
-    instructToMem[5] = 0;
-    instructToMem[6] = 1;
-    instructToMem[7] = 0;
+    instructToMem[5] = 2;
+    instructToMem[6] = 0;
+    instructToMem[7] = 1;
     instructToMem[8] = 1;
     instructToMem[9] = 0;
     instructToMem[10] = 0;
@@ -98,7 +99,7 @@ int main(){
 //             program[pos] = (byte) ((int) program[pos] * (int) 2);
 //         }
 //     }
-//     // // std::cout << "Hello C++!" << std::endl;
+//     //
 
 //     runCode(program);
 
@@ -128,11 +129,9 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
     byte instructionNum = program[pc];
     int instructionCode = ((int) instructionNum) >> 4;
 
-    // cout << "pc\n";
-    // cout << (int) pc;
-    // cout << "\n";
     if(instructionCode==0){
         *statusCode = 2;
+        cout << "halted!\n";
         //raise(SIGSEGV);// CRASH AND BURN
         return returnDict;
     }
@@ -142,19 +141,19 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
     int rB = (int) (program[pc + 1] & ((byte) 0xF));
     int fnCode = (int) ((instructionNum) & ((byte) 0xF));
 
+    //Clear rA, rB for instructions which don't need it
+    if(instructionCode == 0 || instructionCode == 1 || instructionCode == 7 || instructionCode == 8 || instructionCode == 9){
+        rA = 15;
+        rB = 15;
+    }
+    
     int valP = pc+instructToLength[instructionCode];
 
-    // cout << "increasing\n";
-    // cout << instructToLength[instructionCode];
-    // cout << "\n";
-    
     int64_t valC = 0;
 
     if(instructToMem[instructionCode] != 0){
         for(int i = 7; i >= 0; i--){
             valC *= (1 << 8);
-            // cout << (int) program[(int) pc+instructToMem[instructionCode]+i] << "\n";
-            
             valC += (int64_t) program[(int) pc+instructToMem[instructionCode]+i]; //Hopefully pc is never bigger than 2^32 (PRAY)
         }
     }
@@ -169,9 +168,6 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
 
     // 4660
 
-    // cout << "i did\n";
-    // cout << valC << "\n";
-
     // 11000100
 
     // 1234 in binary 1001000110100
@@ -180,7 +176,6 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
 
     //268435456
     //268435456 = 2 ** 28
-    // cout << valC << "\n";
 
     returnDict["rA"] = (int64_t) rA; //Casting to int64_t is OK here, we can just cast back to int later
     returnDict["rB"] = (int64_t) rB;
@@ -208,12 +203,20 @@ std::unordered_map<string, int64_t> decode(int64_t* registers, std::unordered_ma
     //call, pop, push, ret
     //call
     if(instructionCode==8){
-        valB = readDouble(memoryData,stackPtr);
+        valB = stackPtr;
     }
     if(instructionCode==9){
-        valA = readDouble(memoryData,stackPtr);
-        valB = readDouble(memoryData,stackPtr);
+        valA = stackPtr;
+        valB = stackPtr;
     }
+    if(instructionCode==10){
+        valB = stackPtr;
+    }
+    if(instructionCode==11){
+        valA = stackPtr;
+        valB = stackPtr;
+    }
+
 
     packagedValues["valA"] = valA;
     packagedValues["valB"] = valB;
@@ -268,8 +271,10 @@ std::unordered_map<string, int64_t> execute(std::unordered_map<string, int64_t> 
             condition = true;
             break;
         case 10:// push
+            valE = valB - 8;
             break;
         case 11:// pop
+            valE = valB + 8;
             break;
     }
 
@@ -286,6 +291,7 @@ std::unordered_map<string, int64_t> memory(std::unordered_map<string, int64_t> p
     int64_t valP = packagedValues["valP"];
     int64_t valC = packagedValues["valC"];
     int64_t valE = packagedValues["valE"];
+    int64_t valB = packagedValues["valB"];
 
     // MEMORY
     switch(instructionCode) {
@@ -293,8 +299,12 @@ std::unordered_map<string, int64_t> memory(std::unordered_map<string, int64_t> p
             writeDouble(memoryData, valE, valA);
             // memory[valE] = valA;
             break;
-        case 8:
+        case 5:// mrmovq
+            valB = readDouble(memoryData, valE);
+            break;
+        case 8:// call
             writeDouble(memoryData, valE, valP);
+            break;
             // memory[valE] = valP;
         case 9:// ret
             valC = readDouble(memoryData, valA);
@@ -303,8 +313,14 @@ std::unordered_map<string, int64_t> memory(std::unordered_map<string, int64_t> p
             // memory[valE]=valA;
             writeDouble(memoryData, valE, valA);
             break;
+        case 11:// popq
+            // memory[valE]=valA;
+            valA = readDouble(memoryData, valA);
+            break;
     }
+    packagedValues["valA"] = valA;
     packagedValues["valC"] = valC;
+    packagedValues["valB"] = valB;
     return packagedValues;
 }
 std::unordered_map<string, int64_t> writeBack(std::unordered_map<string, int64_t> packagedValues, int64_t* registers){
@@ -312,21 +328,23 @@ std::unordered_map<string, int64_t> writeBack(std::unordered_map<string, int64_t
 
     int rA = (int) packagedValues["rA"];
     int rB = (int) packagedValues["rB"];
+    int instructionCode = (int) packagedValues["rB"];
+    
 
     if(rA!=15){
         registers[rA] = packagedValues["valA"];
     }
     if(rB!=15){
+        // cout << packagedValues["valB"] <<" valB\n";
+        // cout << packagedValues["rB"] <<" rB\n";
         registers[rB] = packagedValues["valB"];
     }
+    
     if(packagedValues["instructionCode"] == 6){
         registers[rB] = packagedValues["valE"];
     }
 
-    if(packagedValues["instructionCode"] == 8){
-        registers[4] = (int64_t) packagedValues["valC"];
-    }
-    if(packagedValues["instructionCode"] == 8){
+    if(packagedValues["instructionCode"] == 8 || packagedValues["instructionCode"] == 9 || packagedValues["instructionCode"] == 10 || packagedValues["instructionCode"] == 11){
         registers[4] = (int64_t) packagedValues["valE"];
     }
 
@@ -534,6 +552,9 @@ int64_t opQ(int64_t rA, int64_t rB, int64_t fnCode){
 //Level step, byte* memoryData, int* pc, int64_t* registers, bool* zeroFlag, bool* overflowFlag, bool* signedFlag, int* statusCode, std::unordered_map<int, int> instructToMem, std::unordered_map<int, int> instructToLength, byte* readStorage
 std::unordered_map<string, int64_t> packagedValues;
 void step(){
+    if(statusCode == 2){
+        return;
+    }
     switch(stepNum){
         case 0:
         //int64_t pc, int* statusCode, byte* program, std::unordered_map<int, int> instructToMem, std::unordered_map<int, int> instructToLength)
@@ -557,15 +578,10 @@ void step(){
             break;
     }
 
-    //0step
-    // cout << "stepNum\n";
-    // cout << stepNum << "\n" << "pc" << pc << "\n";
-    
     render(packagedValues, registers, stepNum, memoryData, pc, zeroFlag, overflowFlag, signedFlag);
 
-    // cout << "increasing stepnum" << stepNum << "\n";
     stepNum = (stepNum + 1) % 6;
-    // cout << "after increase" << stepNum << "\n";
+    
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
