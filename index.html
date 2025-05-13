@@ -43,7 +43,7 @@
                 .then(() => {
                     console.log('init');
 
-                    let code = localStorage.getItem('code');
+                    let code = '30 f0 1 0 0 0 0 0 0 0 30 f3 2 0 0 0 0 0 0 0 30 f1 3 0 0 0 0 0 0 0 30 f5 8 0 0 0 0 0 0 0 60 1 10 20 1 23 2 24 8 22 2 21 2 26 89 25 9a 40 35 8 0 0 0 0 0 0 0 50 55 8 0 0 0 0 0 0 0 60 10 61 10 62 30 63 33 70 5f 0 0 0 0 0 0 0 0 72 5f 0 0 0 0 0 0 0 76 5f 0 0 0 0 0 0 0 74 5f 0 0 0 0 0 0 0 71 84 0 0 0 0 0 0 0 0 61 10 76 84 0 0 0 0 0 0 0 73 84 0 0 0 0 0 0 0 a0 f 80 a6 0 0 0 0 0 0 0 b0 2f 0 90 0';
                     if(!code) {
                         code = prompt('Code not found! Please enter in a string asm code');
                         localStorage.setItem('code', code);

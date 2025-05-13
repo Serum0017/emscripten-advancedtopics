@@ -22,6 +22,7 @@ std::unordered_map<int, int> instructToLength;
 
 int64_t readDouble(byte*, int64_t);
 void writeDouble(byte*, int64_t, int64_t);
+void scuffedWriteDouble(byte*, int64_t, int64_t);
 int64_t opQ(int64_t, int64_t, int64_t);
 bool cmpSuccessful(bool, bool, bool, int);
 
@@ -50,7 +51,7 @@ std::vector<std::string> split(std::string& s, const std::string& delimiter) {
 }
 
 int main(){
-    registers[4] = 120;//sizeof(memoryData) / 8 - 8; //might cause issues with push and pop
+    registers[4] = 128;//sizeof(memoryData) / 8 - 8; //might cause issues with push and pop
     instructToLength[0] = 1;
     instructToLength[1] = 1;
     instructToLength[2] = 2;
@@ -177,6 +178,7 @@ std::unordered_map<string, int64_t> fetch(int64_t pc, int* statusCode, byte* pro
     //268435456
     //268435456 = 2 ** 28
 
+
     returnDict["rA"] = (int64_t) rA; //Casting to int64_t is OK here, we can just cast back to int later
     returnDict["rB"] = (int64_t) rB;
     returnDict["fnCode"] = (int64_t) fnCode;
@@ -257,7 +259,16 @@ std::unordered_map<string, int64_t> execute(std::unordered_map<string, int64_t> 
             valE = opQ(valA, valB, fnCode);
             *zeroFlag = (valE == 0);
             *signedFlag = (valE < 0);
-            *overflowFlag = ((valA<0) == (valB<0)) && ((valE < 0) != (valA < 0));
+            if(fnCode == 0){
+                *overflowFlag = ((valA<0) == (valB<0)) && ((valE < 0) != (valA < 0));
+            }
+            else if(fnCode == 1){
+                *overflowFlag = ((valA<0) == (valB>=0)) && ((valE < 0) != (valA < 0));
+            }
+            else{
+                *overflowFlag = false;
+            }
+            
             break;
         case 7:// jXX
             condition = cmpSuccessful(*zeroFlag, *overflowFlag, *signedFlag, fnCode);
@@ -311,7 +322,10 @@ std::unordered_map<string, int64_t> memory(std::unordered_map<string, int64_t> p
             break;
         case 10:// pushq
             // memory[valE]=valA;
-            writeDouble(memoryData, valE, valA);
+            scuffedWriteDouble(memoryData, valE, valA);
+            // for(int i = 0; i < 128; i++){
+            //     cout << (int) memoryData[i] << "\n";
+            // }
             break;
         case 11:// popq
             // memory[valE]=valA;
@@ -529,9 +543,15 @@ int64_t PC(int64_t pc, std::unordered_map<string, int64_t> packagedValues){
 //     }
 // }
 
+void scuffedWriteDouble(byte *writeTo, int64_t loc, int64_t val){
+    for(int i = 0; i < 8; i++){
+        writeTo[i + loc] = (byte) (((unsigned) ((val) & (0xFF << (i * 8)))) >> (i * 8));
+    }
+}
+
 void writeDouble(byte *writeTo, int64_t loc, int64_t val){
     for(int i = 0; i < 8; i++){
-        writeTo[i + loc] = (byte) (((val) & (0xFF << (i * 8))) >> (i * 8));
+        writeTo[i + loc] = (byte) ((((val) & (0xFF << (i * 8)))) >> (i * 8));
     }
 }
 

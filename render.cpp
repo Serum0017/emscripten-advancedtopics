@@ -73,7 +73,7 @@ void renderRegisters(emscripten::val ctx, int64_t* registers){
     int x = canvasW/2 - registerW/2;
     int y = 0;
     for(int i = 0; i < 15; i++){
-        renderRegister(ctx, x, y, registerNames[i], num2str(registers[i]));
+        renderRegister(ctx, x, y, "M[" + registerNames[i] + "]", num2str(registers[i]));
         y += registerH;
     }
 }
@@ -129,6 +129,11 @@ void renderMemory(emscripten::val ctx, int64_t* registers, byte* memoryData){
     //     renderRegister(ctx, x, y, "M[" + num2str(i) + "]", num2str((int64_t) readDouble(memoryData, i)));
     // }
 
+    
+    // for(int i = 0; i < 128; i++){
+    //     cout << (int) memoryData[i] << "\n";
+    // }
+
     int x = canvasW - memW;
     int y = 0;
     for(int i = 0; i < 15; i++){
@@ -160,39 +165,126 @@ void renderStage(emscripten::val ctx, string stage){
     ctx.call<void>("fillText", stage, canvasW - memW * 2 - 10, 10);
 }
 
+void renderRegisterTxt(emscripten::val ctx, int x, int y, string text){
+    ctx.set("textAlign", "center");
+    ctx.set("textBaseline", "middle");
+    ctx.set("fillStyle", "black");
+    ctx.set("font", "600 38px Ubuntu");
+    ctx.call<void>("fillText", text, x + registerW/2, y + registerH/2);
+}
+
+string codeToInstructionStr[] = {"halt","nop","cmovXX","irmovq","rmmovq","mrmovq","opQ", "jmp", "call","ret","pushq","popq"};
+void renderInstruction(emscripten::val ctx, int x, int y, int64_t instructionCode){
+    renderRegister(ctx, x, y, "Instruction Code", codeToInstructionStr[instructionCode]);
+}
+
 string keysToCheck[] = {"rA","rB","valA","valB","valC","valE","valP", "instructionCode","fnCode","condition","stackPtr"};
+
 void render(std::unordered_map<string, int64_t> packagedValues, int64_t* registers, int stepNum, byte* memoryData, int pc, bool zeroFlag, bool overflowFlag, bool signedFlag, int statusCode) {// deltaTime, use for animations
     const auto document = emscripten::val::global("document");
     const auto canvas = document.call<emscripten::val, std::string>("querySelector", "canvas");
 
     auto ctx = canvas.call<emscripten::val, std::string>("getContext", "2d");
 
+    
+
     // render background
     ctx.set("fillStyle", "white");
     ctx.call<void>("fillRect", 0, 0, canvasW, canvasH);
 
+    switch (stepNum) {
+        //void renderRegister(emscripten::val ctx, int x, int y, string name, string val){//int64_t registerValue
+        case 0: // fetch
+            
+            renderRegister(ctx, registerW, 0, "ifun", num2str(packagedValues["fnCode"]));
+            renderRegister(ctx, registerW, registerH, "icode", num2str(packagedValues["instructionCode"]));
+            renderRegister(ctx, registerW, 2*registerH, "rA", num2str(packagedValues["rA"]));
+            renderRegister(ctx, registerW, 3*registerH, "rB", num2str(packagedValues["rB"]));
+            renderRegister(ctx, registerW, 4*registerH, "valC", num2str(packagedValues["valC"]));
+
+            renderRegisterTxt(ctx, registerW, 5 * registerH, "Input");
+            
+            break;
+        case 1: // decode
+            renderRegister(ctx, registerW, 0, "rA", num2str(packagedValues["rA"]));
+            renderRegister(ctx, registerW, registerH, "rB", num2str(packagedValues["rB"]));
+            renderRegister(ctx, registerW, 2*registerH, "rsp", num2str(registers[4]));
+
+            renderRegisterTxt(ctx, registerW, 3 * registerH, "Input");
+            renderRegisterTxt(ctx, registerW, canvasH - registerH*4, "Output");
+
+            renderRegister(ctx, registerW, canvasH-3*registerH,"valA", num2str(packagedValues["valA"]));
+            renderRegister(ctx, registerW, canvasH-2*registerH, "valB", num2str(packagedValues["valB"]));
+            renderRegister(ctx, registerW, canvasH-1*registerH, "valE", num2str(packagedValues["valE"]));
+            break;
+        case 2:// execute
+
+            renderRegister(ctx, registerW, 0, "ifun", num2str(packagedValues["instructionCode"]));
+            renderRegister(ctx, registerW, registerH, "valA", num2str(packagedValues["valA"]));
+            renderRegister(ctx, registerW, 2*registerH, "valB", num2str(packagedValues["valB"]));
+
+            renderRegisterTxt(ctx, registerW, 3 * registerH, "Input");
+            renderRegisterTxt(ctx, registerW, canvasH - registerH*2, "Output");
+
+            renderRegister(ctx, registerW, canvasH-registerH, "valE", num2str(packagedValues["valE"]));
+            break;
+        case 3:// memory
+            renderRegister(ctx, registerW, 0*registerH,"valA", num2str(packagedValues["valA"]));
+            renderRegister(ctx, registerW, 1*registerH, "valE", num2str(packagedValues["valE"]));
+            renderRegister(ctx, registerW, 2*registerH, "valP", num2str(packagedValues["valP"]));
+
+            renderRegisterTxt(ctx, registerW, 3 * registerH, "Input");
+            renderRegisterTxt(ctx, registerW, canvasH - registerH*2, "Output");
+
+            renderRegister(ctx, registerW, canvasH-registerH, "valM", num2str(packagedValues["valM"]));
+            break;
+        case 4:// write back
+            renderRegister(ctx, registerW, 0*registerH, "valE", num2str(packagedValues["valE"]));
+            renderRegister(ctx, registerW, 1*registerH, "valM", num2str(packagedValues["valM"]));
+
+            renderRegisterTxt(ctx, registerW, 2 * registerH, "Input");
+            break;
+        case 5:// PC
+            renderRegister(ctx, registerW, 0*registerH, "valP", num2str(packagedValues["valP"]));    
+            renderRegister(ctx, registerW, registerH, "valC", num2str(packagedValues["valC"]));
+
+            renderRegisterTxt(ctx, registerW, 2 * registerH, "Input");
+            break;
+    }
+
+    //renderRegisterTxt(emscripten::val ctx, int x, int y, string text)
+    
+    // permanent
     renderRegisters(ctx, registers);
-    renderPC(ctx, pc);
-    renderStage(ctx, statusCode == 2 ? "Halt" : stepToStr[stepNum]);
     renderMemory(ctx, registers, memoryData);
     renderConditionCode(ctx, 0,0,"Zero Flag", zeroFlag);
     renderConditionCode(ctx, 0,registerH,"Overflow Flag", overflowFlag);
     renderConditionCode(ctx, 0,2*registerH,"Signed Flag", signedFlag);
+    renderPC(ctx, pc);
+
+    renderInstruction(ctx, 0, 3*registerH, packagedValues["instructionCode"]);
     
-    int priorDisp = 0;
-    for(int i = 0; i < 11; i++){
-        //if(packagedValues.count(keysToCheck[i])) continue;
-
-        int64_t val = packagedValues[keysToCheck[i]];
-        string toRender = num2str(val);
-        if(keysToCheck[i] == "condition") toRender = (val == (int64_t) 1 ? "true" : "false");
-
-        // cout << "key \n" << keysToCheck[i] << "\n text to render: \n" << toRender << "\n";
-
-        renderRegister(ctx, registerW, priorDisp*registerH, keysToCheck[i], toRender);
-        
-        priorDisp++;
+    renderStage(ctx, statusCode == 2 ? "Halt" : stepToStr[stepNum]);
+    
+    int64_t ic = packagedValues["instructionCode"];
+    if(ic >= 8 && ic <= 11){
+        renderRegister(ctx, 0, 5*registerH, "stackPtr", num2str(packagedValues["stackPtr"]));
     }
+    
+    // int priorDisp = 0;
+    // for(int i = 0; i < 11; i++){
+    //     //if(packagedValues.count(keysToCheck[i])) continue;
+
+    //     int64_t val = packagedValues[keysToCheck[i]];
+    //     string toRender = num2str(val);
+    //     if(keysToCheck[i] == "condition") toRender = (val == (int64_t) 1 ? "true" : "false");
+
+    //     // cout << "key \n" << keysToCheck[i] << "\n text to render: \n" << toRender << "\n";
+
+    //     renderRegister(ctx, registerW, priorDisp*registerH, keysToCheck[i], toRender);
+        
+    //     priorDisp++;
+    // }
 
     // my_map.contains(k1)
 
